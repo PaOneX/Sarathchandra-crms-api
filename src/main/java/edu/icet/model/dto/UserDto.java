@@ -1,4 +1,4 @@
 package edu.icet.model.dto;
 
-public class CustomerDto {
+public class UserDto {
 }
