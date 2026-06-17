@@ -1,5 +1,6 @@
 package com.icet.carrental.repository;
 
+import com.icet.carrental.enums.AuthProvider;
 import com.icet.carrental.enums.UserRole;
 import com.icet.carrental.model.User;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,8 @@ public class UserRepository {
             .name(rs.getString("name"))
             .email(rs.getString("email"))
             .password(rs.getString("password"))
+            .authProvider(AuthProvider.valueOf(rs.getString("auth_provider")))
+            .googleId(rs.getString("google_id"))
             .phone(rs.getString("phone"))
             .role(UserRole.valueOf(rs.getString("role")))
             .createdAt(rs.getTimestamp("created_at").toLocalDateTime())
@@ -40,6 +43,11 @@ public class UserRepository {
     public Optional<User> findByEmail(String email) {
         String sql = "SELECT * FROM users WHERE email = ?";
         return jdbcTemplate.query(sql, USER_ROW_MAPPER, email).stream().findFirst();
+    }
+
+    public Optional<User> findByGoogleId(String googleId) {
+        String sql = "SELECT * FROM users WHERE google_id = ?";
+        return jdbcTemplate.query(sql, USER_ROW_MAPPER, googleId).stream().findFirst();
     }
 
     public List<User> findAll() {
@@ -62,34 +70,46 @@ public class UserRepository {
 
     private User insert(User user) {
         String sql = """
-                INSERT INTO users (name, email, password, phone, role)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO users (name, email, password, auth_provider, google_id, phone, role)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """;
         KeyHolder keyHolder = new GeneratedKeyHolder();
+
+        AuthProvider authProvider = user.getAuthProvider() != null
+                ? user.getAuthProvider() : AuthProvider.LOCAL;
 
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, user.getName());
             ps.setString(2, user.getEmail());
             ps.setString(3, user.getPassword());
-            ps.setString(4, user.getPhone());
-            ps.setString(5, user.getRole().name());
+            ps.setString(4, authProvider.name());
+            ps.setString(5, user.getGoogleId());
+            ps.setString(6, user.getPhone());
+            ps.setString(7, user.getRole().name());
             return ps;
         }, keyHolder);
 
         user.setId(Objects.requireNonNull(keyHolder.getKey()).longValue());
+        user.setAuthProvider(authProvider);
         return user;
     }
 
     private User update(User user) {
         String sql = """
                 UPDATE users
-                SET name = ?, email = ?, phone = ?, role = ?, updated_at = NOW()
+                SET name = ?, email = ?, phone = ?, role = ?,
+                    auth_provider = ?, google_id = ?, updated_at = NOW()
                 WHERE id = ?
                 """;
+        AuthProvider authProvider = user.getAuthProvider() != null
+                ? user.getAuthProvider() : AuthProvider.LOCAL;
+
         jdbcTemplate.update(sql,
                 user.getName(), user.getEmail(), user.getPhone(),
-                user.getRole().name(), user.getId());
+                user.getRole().name(), authProvider.name(), user.getGoogleId(),
+                user.getId());
+        user.setAuthProvider(authProvider);
         return user;
     }
 
