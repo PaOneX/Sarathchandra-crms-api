@@ -1,5 +1,6 @@
 package com.icet.carrental.model;
 
+import com.icet.carrental.enums.AuthProvider;
 import com.icet.carrental.enums.UserRole;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,6 +18,8 @@ public class User {
     private String        name;
     private String        email;
     private String        password;
+    private AuthProvider  authProvider;
+    private String        googleId;
     private String        phone;
     private UserRole      role;
     private LocalDateTime createdAt;
