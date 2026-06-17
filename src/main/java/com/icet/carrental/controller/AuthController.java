@@ -1,5 +1,6 @@
 package com.icet.carrental.controller;
 
+import com.icet.carrental.dto.request.GoogleAuthRequest;
 import com.icet.carrental.dto.request.LoginRequest;
 import com.icet.carrental.dto.request.RegisterRequest;
 import com.icet.carrental.dto.response.ApiResponse;
@@ -36,5 +37,13 @@ public class AuthController {
 
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(ApiResponse.success("Login successful", response));
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<ApiResponse<AuthResponse>> googleAuth(
+            @Valid @RequestBody GoogleAuthRequest request) {
+
+        AuthResponse response = authService.googleAuth(request);
+        return ResponseEntity.ok(ApiResponse.success("Google authentication successful", response));
     }
 }
