@@ -22,4 +22,7 @@ public class BookingResponse {
     private BigDecimal    totalAmount;
     private BookingStatus status;
     private LocalDateTime createdAt;
+    private BigDecimal    advanceAmount;
+    private BigDecimal    balanceDue;
+    private Boolean       whatsappSent;
 }
