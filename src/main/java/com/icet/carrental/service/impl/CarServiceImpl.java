@@ -19,7 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -64,7 +66,9 @@ public class CarServiceImpl implements CarService {
                 .description(request.getDescription())
                 .build();
 
-        return toCarResponse(carRepository.save(car));
+        Car saved = carRepository.save(car);
+        syncExternalImageUrls(saved.getId(), request.getImageUrls());
+        return toCarResponse(saved);
     }
 
     @Override
@@ -81,7 +85,9 @@ public class CarServiceImpl implements CarService {
         car.setLicensePlate(request.getLicensePlate());
         car.setDescription(request.getDescription());
 
-        return toCarResponse(carRepository.save(car));
+        Car saved = carRepository.save(car);
+        syncExternalImageUrls(saved.getId(), request.getImageUrls());
+        return toCarResponse(saved);
     }
 
     @Override
@@ -151,6 +157,50 @@ public class CarServiceImpl implements CarService {
 
         storageService.delete(supabaseProperties.getStorage().getCars(), image.getStoragePath());
         carImageRepository.deleteById(imageId);
+    }
+
+    private void syncExternalImageUrls(Long carId, List<String> imageUrls) {
+        if (imageUrls == null) {
+            return;
+        }
+
+        List<String> normalized = imageUrls.stream()
+                .filter(url -> url != null && !url.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+
+        List<CarImage> existing = carImageRepository.findByCarId(carId);
+        Set<String> requestedUrls = new HashSet<>(normalized);
+
+        for (CarImage image : existing) {
+            if (image.getStoragePath().startsWith("external:")
+                    && !requestedUrls.contains(image.getUrl())) {
+                carImageRepository.deleteById(image.getId());
+            }
+        }
+
+        Set<String> existingUrls = carImageRepository.findByCarId(carId).stream()
+                .map(CarImage::getUrl)
+                .collect(java.util.stream.Collectors.toSet());
+
+        int order = carImageRepository.countByCarId(carId);
+        for (String url : normalized) {
+            if (existingUrls.contains(url)) {
+                continue;
+            }
+            if (order >= MAX_IMAGES_PER_CAR) {
+                throw new InvalidFileException(
+                        "A car can have at most " + MAX_IMAGES_PER_CAR + " images");
+            }
+
+            carImageRepository.save(CarImage.builder()
+                    .carId(carId)
+                    .storagePath("external:" + url)
+                    .url(url)
+                    .sortOrder(order++)
+                    .build());
+        }
     }
 
     private Car findCarOrThrow(Long id) {
