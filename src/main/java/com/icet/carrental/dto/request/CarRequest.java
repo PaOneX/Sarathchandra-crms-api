@@ -5,6 +5,7 @@ import jakarta.validation.constraints.*;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 public class CarRequest {
@@ -36,4 +37,7 @@ public class CarRequest {
 
     @Size(max = 2000)
     private String description;
+
+    @Size(max = 5, message = "A car can have at most 5 images")
+    private List<@NotBlank @Size(max = 500) String> imageUrls;
 }
