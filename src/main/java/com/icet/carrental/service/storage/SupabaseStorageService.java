@@ -4,11 +4,9 @@ import com.icet.carrental.config.SupabaseProperties;
 import com.icet.carrental.exception.StorageException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
-import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
-@Service
 @RequiredArgsConstructor
 public class SupabaseStorageService implements StorageService {
 
