@@ -24,6 +24,7 @@ public class Car {
     private CarStatus     status;
     private Integer       year;
     private String        licensePlate;
+    private String        description;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

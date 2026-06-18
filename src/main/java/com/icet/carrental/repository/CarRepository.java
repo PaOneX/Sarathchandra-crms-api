@@ -33,6 +33,7 @@ public class CarRepository {
             .status(CarStatus.valueOf(rs.getString("status")))
             .year(rs.getInt("year"))
             .licensePlate(rs.getString("license_plate"))
+            .description(rs.getString("description"))
             .createdAt(rs.getTimestamp("created_at").toLocalDateTime())
             .updatedAt(rs.getTimestamp("updated_at").toLocalDateTime())
             .build();
@@ -87,8 +88,8 @@ public class CarRepository {
     private Car insert(Car car) {
         String sql = """
                 INSERT INTO cars (brand, model, fuel_type, seating_capacity, daily_rate,
-                                  status, year, license_plate)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                  status, year, license_plate, description)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -102,6 +103,7 @@ public class CarRepository {
             ps.setString(6, car.getStatus() != null ? car.getStatus().name() : CarStatus.AVAILABLE.name());
             ps.setObject(7, car.getYear());
             ps.setString(8, car.getLicensePlate());
+            ps.setString(9, car.getDescription());
             return ps;
         }, keyHolder);
 
@@ -113,13 +115,14 @@ public class CarRepository {
         String sql = """
                 UPDATE cars
                 SET brand = ?, model = ?, fuel_type = ?, seating_capacity = ?,
-                    daily_rate = ?, year = ?, license_plate = ?, updated_at = NOW()
+                    daily_rate = ?, year = ?, license_plate = ?, description = ?,
+                    updated_at = NOW()
                 WHERE id = ?
                 """;
         jdbcTemplate.update(sql,
                 car.getBrand(), car.getModel(), car.getFuelType().name(),
                 car.getSeatingCapacity(), car.getDailyRate(),
-                car.getYear(), car.getLicensePlate(), car.getId());
+                car.getYear(), car.getLicensePlate(), car.getDescription(), car.getId());
         return car;
     }
 
