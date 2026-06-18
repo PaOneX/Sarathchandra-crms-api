@@ -21,6 +21,7 @@ public class User {
     private AuthProvider  authProvider;
     private String        googleId;
     private String        phone;
+    private String        profilePictureUrl;
     private UserRole      role;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

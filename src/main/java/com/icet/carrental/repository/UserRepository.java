@@ -30,6 +30,7 @@ public class UserRepository {
             .authProvider(AuthProvider.valueOf(rs.getString("auth_provider")))
             .googleId(rs.getString("google_id"))
             .phone(rs.getString("phone"))
+            .profilePictureUrl(rs.getString("profile_picture_url"))
             .role(UserRole.valueOf(rs.getString("role")))
             .createdAt(rs.getTimestamp("created_at").toLocalDateTime())
             .updatedAt(rs.getTimestamp("updated_at").toLocalDateTime())
@@ -70,8 +71,9 @@ public class UserRepository {
 
     private User insert(User user) {
         String sql = """
-                INSERT INTO users (name, email, password, auth_provider, google_id, phone, role)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO users (name, email, password, auth_provider, google_id, phone,
+                                   profile_picture_url, role)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -86,7 +88,8 @@ public class UserRepository {
             ps.setString(4, authProvider.name());
             ps.setString(5, user.getGoogleId());
             ps.setString(6, user.getPhone());
-            ps.setString(7, user.getRole().name());
+            ps.setString(7, user.getProfilePictureUrl());
+            ps.setString(8, user.getRole().name());
             return ps;
         }, keyHolder);
 
@@ -98,7 +101,7 @@ public class UserRepository {
     private User update(User user) {
         String sql = """
                 UPDATE users
-                SET name = ?, email = ?, phone = ?, role = ?,
+                SET name = ?, email = ?, phone = ?, profile_picture_url = ?, role = ?,
                     auth_provider = ?, google_id = ?, updated_at = NOW()
                 WHERE id = ?
                 """;
@@ -106,7 +109,7 @@ public class UserRepository {
                 ? user.getAuthProvider() : AuthProvider.LOCAL;
 
         jdbcTemplate.update(sql,
-                user.getName(), user.getEmail(), user.getPhone(),
+                user.getName(), user.getEmail(), user.getPhone(), user.getProfilePictureUrl(),
                 user.getRole().name(), authProvider.name(), user.getGoogleId(),
                 user.getId());
         user.setAuthProvider(authProvider);
