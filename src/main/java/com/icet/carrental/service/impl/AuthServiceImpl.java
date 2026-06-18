@@ -101,6 +101,7 @@ public class AuthServiceImpl implements AuthService {
                 .name(user.getName())
                 .email(user.getEmail())
                 .role(user.getRole())
+                .profilePictureUrl(user.getProfilePictureUrl())
                 .token(token)
                 .tokenType("Bearer")
                 .build();
