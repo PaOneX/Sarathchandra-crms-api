@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -36,6 +37,15 @@ public class UserController {
 
         return ResponseEntity.ok(ApiResponse.success("Profile updated",
                 userService.updateMyProfile(userDetails.getUsername(), request)));
+    }
+
+    @PostMapping("/me/avatar")
+    public ResponseEntity<ApiResponse<UserResponse>> uploadProfilePicture(
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        UserResponse user = userService.uploadProfilePicture(userDetails.getUsername(), file);
+        return ResponseEntity.ok(ApiResponse.success("Profile picture uploaded successfully", user));
     }
 
     @GetMapping
