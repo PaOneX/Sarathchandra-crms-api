@@ -1,22 +1,30 @@
 package com.icet.carrental.service.impl;
 
+import com.icet.carrental.config.SupabaseProperties;
 import com.icet.carrental.dto.request.RegisterRequest;
 import com.icet.carrental.dto.response.UserResponse;
 import com.icet.carrental.exception.ResourceNotFoundException;
 import com.icet.carrental.model.User;
 import com.icet.carrental.repository.UserRepository;
 import com.icet.carrental.service.UserService;
+import com.icet.carrental.service.storage.StorageService;
+import com.icet.carrental.util.ImageFileValidator;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
-    private final UserRepository userRepository;
+    private final UserRepository     userRepository;
+    private final StorageService     storageService;
+    private final SupabaseProperties supabaseProperties;
 
     @Override
     @Transactional(readOnly = true)
@@ -62,9 +70,57 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    public UserResponse uploadProfilePicture(String email, MultipartFile file) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + email));
+
+        ImageFileValidator.validate(file);
+
+        String bucket      = supabaseProperties.getStorage().getAvatars();
+        String extension   = ImageFileValidator.resolveExtension(file);
+        String path        = ImageFileValidator.generateObjectName("avatars/" + user.getId(), extension);
+        String contentType = ImageFileValidator.normalizeContentType(file.getContentType());
+
+        deleteExistingAvatar(bucket, user.getProfilePictureUrl());
+
+        String publicUrl = storageService.upload(
+                bucket, path, ImageFileValidator.readBytes(file), contentType);
+
+        user.setProfilePictureUrl(publicUrl);
+        return toUserResponse(userRepository.save(user));
+    }
+
+    @Override
+    @Transactional
     public void deleteUser(Long id) {
         findUserOrThrow(id);
         userRepository.deleteById(id);
+    }
+
+    private void deleteExistingAvatar(String bucket, String profilePictureUrl) {
+        if (profilePictureUrl == null || profilePictureUrl.isBlank()) {
+            return;
+        }
+
+        String storagePath = extractStoragePath(bucket, profilePictureUrl);
+        if (storagePath == null) {
+            return;
+        }
+
+        try {
+            storageService.delete(bucket, storagePath);
+        } catch (Exception ex) {
+            log.warn("Failed to delete previous avatar at {}: {}", storagePath, ex.getMessage());
+        }
+    }
+
+    private String extractStoragePath(String bucket, String publicUrl) {
+        String marker = "/storage/v1/object/public/" + bucket + "/";
+        int    index  = publicUrl.indexOf(marker);
+        if (index < 0) {
+            return null;
+        }
+        return publicUrl.substring(index + marker.length());
     }
 
     private User findUserOrThrow(Long id) {
@@ -78,6 +134,7 @@ public class UserServiceImpl implements UserService {
                 .name(user.getName())
                 .email(user.getEmail())
                 .phone(user.getPhone())
+                .profilePictureUrl(user.getProfilePictureUrl())
                 .role(user.getRole())
                 .createdAt(user.getCreatedAt())
                 .build();
