@@ -7,6 +7,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -20,5 +21,7 @@ public class CarResponse {
     private CarStatus     status;
     private Integer       year;
     private String        licensePlate;
+    private String        description;
+    private List<String>  imageUrls;
     private LocalDateTime createdAt;
 }

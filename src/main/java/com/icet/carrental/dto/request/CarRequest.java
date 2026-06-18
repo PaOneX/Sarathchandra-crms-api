@@ -33,4 +33,7 @@ public class CarRequest {
 
     @Size(max = 20)
     private String licensePlate;
+
+    @Size(max = 2000)
+    private String description;
 }
