@@ -14,12 +14,15 @@ import com.icet.carrental.model.User;
 import com.icet.carrental.repository.BookingRepository;
 import com.icet.carrental.repository.CarRepository;
 import com.icet.carrental.repository.UserRepository;
+import com.icet.carrental.config.WhatsAppProperties;
 import com.icet.carrental.service.BookingService;
+import com.icet.carrental.service.WhatsAppService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
@@ -30,6 +33,8 @@ public class BookingServiceImpl implements BookingService {
     private final BookingRepository bookingRepository;
     private final CarRepository     carRepository;
     private final UserRepository    userRepository;
+    private final WhatsAppService   whatsAppService;
+    private final WhatsAppProperties whatsAppProperties;
 
     @Override
     @Transactional(readOnly = true)
@@ -97,7 +102,9 @@ public class BookingServiceImpl implements BookingService {
                 .status(BookingStatus.PENDING)
                 .build();
 
-        return toBookingResponse(bookingRepository.save(booking));
+        Booking saved = bookingRepository.save(booking);
+        boolean whatsappSent = whatsAppService.sendBookingConfirmation(user, saved, car);
+        return toBookingResponse(saved, whatsappSent);
     }
 
     @Override
@@ -173,8 +180,18 @@ public class BookingServiceImpl implements BookingService {
     }
 
     private BookingResponse toBookingResponse(Booking booking) {
+        return toBookingResponse(booking, null);
+    }
+
+    private BookingResponse toBookingResponse(Booking booking, Boolean whatsappSent) {
         User user = userRepository.findById(booking.getUserId()).orElse(null);
         Car  car  = carRepository.findById(booking.getCarId()).orElse(null);
+
+        BigDecimal total = booking.getTotalAmount();
+        BigDecimal advance = total
+                .multiply(BigDecimal.valueOf(whatsAppProperties.getAdvancePercent()))
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        BigDecimal balance = total.subtract(advance);
 
         return BookingResponse.builder()
                 .id(booking.getId())
@@ -185,7 +202,10 @@ public class BookingServiceImpl implements BookingService {
                 .carModel(car != null ? car.getModel() : "Unknown")
                 .startDate(booking.getStartDate())
                 .endDate(booking.getEndDate())
-                .totalAmount(booking.getTotalAmount())
+                .totalAmount(total)
+                .advanceAmount(advance)
+                .balanceDue(balance)
+                .whatsappSent(whatsappSent)
                 .status(booking.getStatus())
                 .createdAt(booking.getCreatedAt())
                 .build();
