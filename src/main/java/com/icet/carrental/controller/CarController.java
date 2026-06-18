@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -72,5 +73,25 @@ public class CarController {
 
         carService.updateCarStatus(id, request.getStatus());
         return ResponseEntity.ok(ApiResponse.success("Car status updated", null));
+    }
+
+    @PostMapping("/{id}/images")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<CarResponse>> uploadCarImages(
+            @PathVariable Long id,
+            @RequestParam("images") MultipartFile[] images) {
+
+        CarResponse car = carService.uploadCarImages(id, images);
+        return ResponseEntity.ok(ApiResponse.success("Car images uploaded successfully", car));
+    }
+
+    @DeleteMapping("/{id}/images/{imageId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteCarImage(
+            @PathVariable Long id,
+            @PathVariable Long imageId) {
+
+        carService.deleteCarImage(id, imageId);
+        return ResponseEntity.ok(ApiResponse.success("Car image deleted successfully", null));
     }
 }
