@@ -24,11 +24,17 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.temporal.ChronoUnit;
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class BookingServiceImpl implements BookingService {
+
+    private static final Map<BookingStatus, Set<BookingStatus>> ALLOWED_TRANSITIONS = buildTransitions();
 
     private final BookingRepository bookingRepository;
     private final CarRepository     carRepository;
@@ -123,7 +129,21 @@ public class BookingServiceImpl implements BookingService {
             throw new IllegalArgumentException("End date must be after start date");
         }
 
-        bookingRepository.updateDates(id, request.getStartDate(), request.getEndDate());
+        Car car = findCarOrThrow(booking.getCarId());
+
+        boolean available = bookingRepository.isCarAvailable(
+                booking.getCarId(), request.getStartDate(), request.getEndDate(), id);
+
+        if (!available) {
+            throw new BookingConflictException(
+                    "Car is already booked for the selected period");
+        }
+
+        long days = ChronoUnit.DAYS.between(request.getStartDate(), request.getEndDate());
+        BigDecimal totalAmount = car.getDailyRate().multiply(BigDecimal.valueOf(days));
+
+        bookingRepository.updateDatesAndAmount(
+                id, request.getStartDate(), request.getEndDate(), totalAmount);
         return toBookingResponse(findBookingOrThrow(id));
     }
 
@@ -143,25 +163,59 @@ public class BookingServiceImpl implements BookingService {
         }
 
         bookingRepository.updateStatus(id, BookingStatus.CANCELLED);
+        releaseCarIfNoActiveBookings(booking.getCarId(), id);
     }
 
     @Override
     @Transactional
     public BookingResponse updateBookingStatus(Long id, BookingStatus status) {
-        findBookingOrThrow(id);
+        Booking booking = findBookingOrThrow(id);
+        validateStatusTransition(booking.getStatus(), status);
+
         bookingRepository.updateStatus(id, status);
 
         if (status == BookingStatus.APPROVED) {
-            Booking booking = findBookingOrThrow(id);
+            Car car = findCarOrThrow(booking.getCarId());
+            if (car.getStatus() != CarStatus.AVAILABLE) {
+                throw new CarNotAvailableException(car.getId());
+            }
             carRepository.updateStatus(booking.getCarId(), CarStatus.RENTED);
         }
-        if (status == BookingStatus.COMPLETED || status == BookingStatus.REJECTED
+
+        if (status == BookingStatus.COMPLETED
+                || status == BookingStatus.REJECTED
                 || status == BookingStatus.CANCELLED) {
-            Booking booking = findBookingOrThrow(id);
-            carRepository.updateStatus(booking.getCarId(), CarStatus.AVAILABLE);
+            releaseCarIfNoActiveBookings(booking.getCarId(), id);
         }
 
         return toBookingResponse(findBookingOrThrow(id));
+    }
+
+    private void validateStatusTransition(BookingStatus current, BookingStatus next) {
+        if (current == next) {
+            return;
+        }
+
+        Set<BookingStatus> allowed = ALLOWED_TRANSITIONS.get(current);
+        if (allowed == null || !allowed.contains(next)) {
+            throw new IllegalArgumentException(
+                    "Cannot transition booking from " + current + " to " + next);
+        }
+    }
+
+    private void releaseCarIfNoActiveBookings(Long carId, Long excludeBookingId) {
+        if (bookingRepository.countActiveBookingsForCar(carId, excludeBookingId) == 0) {
+            carRepository.updateStatus(carId, CarStatus.AVAILABLE);
+        }
+    }
+
+    private static Map<BookingStatus, Set<BookingStatus>> buildTransitions() {
+        Map<BookingStatus, Set<BookingStatus>> transitions = new EnumMap<>(BookingStatus.class);
+        transitions.put(BookingStatus.PENDING, EnumSet.of(
+                BookingStatus.APPROVED, BookingStatus.REJECTED, BookingStatus.CANCELLED));
+        transitions.put(BookingStatus.APPROVED, EnumSet.of(
+                BookingStatus.COMPLETED, BookingStatus.CANCELLED));
+        return transitions;
     }
 
     private Booking findBookingOrThrow(Long id) {
