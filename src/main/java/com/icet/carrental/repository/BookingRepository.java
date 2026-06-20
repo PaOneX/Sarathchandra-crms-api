@@ -51,16 +51,43 @@ public class BookingRepository {
     }
 
     public boolean isCarAvailable(Long carId, LocalDate startDate, LocalDate endDate) {
+        return isCarAvailable(carId, startDate, endDate, null);
+    }
+
+    public boolean isCarAvailable(Long carId, LocalDate startDate, LocalDate endDate, Long excludeBookingId) {
         String sql = """
                 SELECT COUNT(*) FROM bookings
                 WHERE car_id = ?
-                  AND status NOT IN ('REJECTED', 'CANCELLED')
+                  AND status NOT IN ('REJECTED', 'CANCELLED', 'COMPLETED')
                   AND start_date < ?
                   AND end_date > ?
                 """;
-        Integer count = jdbcTemplate.queryForObject(sql, Integer.class,
-                carId, Date.valueOf(endDate), Date.valueOf(startDate));
+        Integer count;
+        if (excludeBookingId != null) {
+            sql += " AND id <> ?";
+            count = jdbcTemplate.queryForObject(sql, Integer.class,
+                    carId, Date.valueOf(endDate), Date.valueOf(startDate), excludeBookingId);
+        } else {
+            count = jdbcTemplate.queryForObject(sql, Integer.class,
+                    carId, Date.valueOf(endDate), Date.valueOf(startDate));
+        }
         return count != null && count == 0;
+    }
+
+    public int countActiveBookingsForCar(Long carId, Long excludeBookingId) {
+        String sql = """
+                SELECT COUNT(*) FROM bookings
+                WHERE car_id = ?
+                  AND status IN ('PENDING', 'APPROVED')
+                """;
+        Integer count;
+        if (excludeBookingId != null) {
+            sql += " AND id <> ?";
+            count = jdbcTemplate.queryForObject(sql, Integer.class, carId, excludeBookingId);
+        } else {
+            count = jdbcTemplate.queryForObject(sql, Integer.class, carId);
+        }
+        return count != null ? count : 0;
     }
 
     public List<Booking> findByDateRange(LocalDate startDate, LocalDate endDate) {
@@ -102,6 +129,16 @@ public class BookingRepository {
                 WHERE id = ?
                 """;
         jdbcTemplate.update(sql, Date.valueOf(startDate), Date.valueOf(endDate), id);
+    }
+
+    public void updateDatesAndAmount(Long id, LocalDate startDate, LocalDate endDate,
+                                     java.math.BigDecimal totalAmount) {
+        String sql = """
+                UPDATE bookings
+                SET start_date = ?, end_date = ?, total_amount = ?, updated_at = NOW()
+                WHERE id = ?
+                """;
+        jdbcTemplate.update(sql, Date.valueOf(startDate), Date.valueOf(endDate), totalAmount, id);
     }
 
     public void updateStatus(Long id, BookingStatus status) {
