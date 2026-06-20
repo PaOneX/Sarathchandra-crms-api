@@ -1,7 +1,8 @@
 package com.icet.carrental.controller;
 
-import com.icet.carrental.dto.request.PaymentRequest;
+import com.icet.carrental.dto.request.CheckoutRequest;
 import com.icet.carrental.dto.response.ApiResponse;
+import com.icet.carrental.dto.response.CheckoutSessionResponse;
 import com.icet.carrental.dto.response.PaymentResponse;
 import com.icet.carrental.service.PaymentService;
 import jakarta.validation.Valid;
@@ -22,15 +23,16 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
-    @PostMapping
+    @PostMapping("/checkout")
     @PreAuthorize("hasRole('CUSTOMER')")
-    public ResponseEntity<ApiResponse<PaymentResponse>> processPayment(
-            @Valid @RequestBody PaymentRequest request,
+    public ResponseEntity<ApiResponse<CheckoutSessionResponse>> createCheckoutSession(
+            @Valid @RequestBody CheckoutRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
 
-        PaymentResponse payment = paymentService.processPayment(request, userDetails.getUsername());
+        CheckoutSessionResponse session = paymentService.createCheckoutSession(
+                request, userDetails.getUsername());
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Payment processed successfully", payment));
+                .body(ApiResponse.success("Checkout session created", session));
     }
 
     @GetMapping

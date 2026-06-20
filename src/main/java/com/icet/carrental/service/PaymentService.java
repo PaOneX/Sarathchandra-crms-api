@@ -1,6 +1,7 @@
 package com.icet.carrental.service;
 
-import com.icet.carrental.dto.request.PaymentRequest;
+import com.icet.carrental.dto.request.CheckoutRequest;
+import com.icet.carrental.dto.response.CheckoutSessionResponse;
 import com.icet.carrental.dto.response.PaymentResponse;
 
 import java.util.List;
@@ -13,5 +14,7 @@ public interface PaymentService {
 
     PaymentResponse getPaymentByBookingId(Long bookingId, String email, boolean isPrivileged);
 
-    PaymentResponse processPayment(PaymentRequest request, String email);
+    CheckoutSessionResponse createCheckoutSession(CheckoutRequest request, String email);
+
+    void completePaymentFromWebhook(Long paymentId, Long bookingId, String sessionId);
 }
