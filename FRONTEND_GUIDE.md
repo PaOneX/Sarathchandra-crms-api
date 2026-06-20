@@ -3,7 +3,7 @@
 This document is the single source of truth for building a **separate frontend repository** that connects to this Spring Boot API.
 
 **Backend repo:** `Car_Rental_Managemnt_System_api`  
-**Base URL (local):** `http://localhost:8080`  
+**Base URL (local):** `http://localhost:8081`  
 **API prefix:** `/api`
 
 ---
@@ -12,7 +12,7 @@ This document is the single source of truth for building a **separate frontend r
 
 1. [Quick Start](#1-quick-start)
 2. [Architecture Overview](#2-architecture-overview)
-3. [CORS (Required Backend Change)](#3-cors-required-backend-change)
+3. [CORS Configuration](#3-cors-configuration)
 4. [Authentication](#4-authentication)
 5. [API Response Format](#5-api-response-format)
 6. [Error Handling](#6-error-handling)
@@ -43,7 +43,7 @@ npm install -D tailwindcss @tailwindcss/vite
 ### Minimum `.env` for the frontend
 
 ```env
-VITE_API_BASE_URL=http://localhost:8080/api
+VITE_API_BASE_URL=http://localhost:8081/api
 VITE_GOOGLE_CLIENT_ID=YOUR_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com
 ```
 
@@ -53,7 +53,7 @@ VITE_GOOGLE_CLIENT_ID=YOUR_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com
 
 | App      | Command (backend)     | URL                    |
 |----------|-----------------------|------------------------|
-| Backend  | `./mvnw spring-boot:run` | `http://localhost:8080` |
+| Backend  | `./mvnw spring-boot:run -Dspring-boot.run.profiles=dev` | `http://localhost:8081` |
 | Frontend | `npm run dev`         | `http://localhost:5173` |
 
 ---
@@ -62,7 +62,7 @@ VITE_GOOGLE_CLIENT_ID=YOUR_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com
 
 ```
 ┌─────────────────────┐         JWT Bearer          ┌──────────────────────────┐
-│   React Frontend    │  ─────────────────────────► │  Spring Boot API :8080   │
+│   React Frontend    │  ─────────────────────────► │  Spring Boot API :8081   │
 │   (separate repo)   │         JSON / REST         │  MySQL + Flyway          │
 └─────────────────────┘                             └──────────────────────────┘
          │
@@ -75,34 +75,20 @@ VITE_GOOGLE_CLIENT_ID=YOUR_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com
 
 ---
 
-## 3. CORS (Required Backend Change)
+## 3. CORS Configuration
 
-The backend **does not have CORS configured yet**. Browsers will block requests from `http://localhost:5173` until you add this to the backend repo.
+CORS is configured via the backend environment variable `CORS_ALLOWED_ORIGINS` (comma-separated list).
 
-Add a `CorsConfig.java` (or update `SecurityConfig`):
+**Local dev defaults** (in `application-dev.properties`):
 
-```java
-@Bean
-public CorsConfigurationSource corsConfigurationSource() {
-    CorsConfiguration config = new CorsConfiguration();
-    config.setAllowedOrigins(List.of(
-        "http://localhost:5173",
-        "http://localhost:3000"
-    ));
-    config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-    config.setAllowedHeaders(List.of("*"));
-    config.setAllowCredentials(true);
-
-    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-    source.registerCorsConfiguration("/api/**", config);
-    return source;
-}
+```
+http://localhost:4200,http://localhost:5173,http://localhost:3000
 ```
 
-And in `SecurityConfig`:
+**Production:** set `CORS_ALLOWED_ORIGINS` to your deployed frontend URL(s), e.g.:
 
-```java
-.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+```
+https://app.yourdomain.com
 ```
 
 **Alternative (dev only):** Vite proxy in `vite.config.ts`:
@@ -111,7 +97,7 @@ And in `SecurityConfig`:
 export default defineConfig({
   server: {
     proxy: {
-      '/api': 'http://localhost:8080',
+      '/api': 'http://localhost:8081',
     },
   },
 });
@@ -492,12 +478,28 @@ GET /api/cars?brand=Toyota&fuelType=HYBRID&minPrice=50&maxPrice=200
 
 | Method | Path | Auth | Body | Response `data` |
 |--------|------|------|------|-----------------|
-| POST | `/` | CUSTOMER | `PaymentRequest` | `PaymentResponse` |
+| POST | `/checkout` | CUSTOMER | `{ bookingId }` | `CheckoutSessionResponse` |
 | GET | `/` | ADMIN, PAYMENT_MANAGER | — | `PaymentResponse[]` |
 | GET | `/my` | CUSTOMER | — | `PaymentResponse[]` |
 | GET | `/booking/{bookingId}` | Owner or privileged | — | `PaymentResponse` |
 
-**Typical `paymentMethod` values:** `"CARD"`, `"CASH"`, `"BANK_TRANSFER"` (backend accepts any non-blank string).
+**Stripe checkout flow:**
+
+1. Booking must be `APPROVED` before payment.
+2. `POST /api/payments/checkout` with `{ "bookingId": 1 }`.
+3. Response includes `checkoutUrl` — redirect the customer to Stripe Checkout.
+4. After payment, Stripe calls `POST /api/webhooks/stripe` (backend only).
+5. Poll `GET /api/payments/booking/{bookingId}` until `status` is `COMPLETED`.
+
+```typescript
+interface CheckoutSessionResponse {
+  checkoutUrl: string;
+  sessionId: string;
+  paymentId: number;
+}
+```
+
+Install `@stripe/stripe-js` on the frontend only if you use Stripe Elements; Checkout redirect needs no client SDK.
 
 ---
 
@@ -506,14 +508,14 @@ GET /api/cars?brand=Toyota&fuelType=HYBRID&minPrice=50&maxPrice=200
 | Method | Path | Auth | Body | Response `data` |
 |--------|------|------|------|-----------------|
 | GET | `/me` | Any | — | `UserResponse` |
-| PUT | `/me` | Any | `RegisterRequest` | `UserResponse` |
+| PUT | `/me` | Any | `{ name, phone }` | `UserResponse` |
 | POST | `/me/avatar` | Any | `multipart/form-data` field `file` | `UserResponse` |
 | GET | `/` | ADMIN | — | `UserResponse[]` |
 | GET | `/{id}` | ADMIN | — | `UserResponse` |
 | PUT | `/{id}` | ADMIN | `RegisterRequest` | `UserResponse` |
 | DELETE | `/{id}` | ADMIN | — | `null` |
 
-> Profile update reuses `RegisterRequest` (name, email, password, phone). Password change is optional on update depending on backend logic.
+> Profile update uses `{ name, phone }` only — password is not required on `PUT /api/users/me`.
 
 ---
 
@@ -700,8 +702,9 @@ Browse cars (public)
   → POST /api/bookings
   → Status: PENDING
   → (Admin approves) Status: APPROVED
-  → POST /api/payments { bookingId, paymentMethod }
-  → Status: COMPLETED
+  → POST /api/payments/checkout { bookingId }
+  → Redirect to checkoutUrl (Stripe)
+  → Webhook completes payment → Booking: COMPLETED
 ```
 
 ### Admin: Approve booking
@@ -845,21 +848,25 @@ export function ProtectedRoute({ children, roles }: Props) {
 ### Frontend `.env.example`
 
 ```env
-VITE_API_BASE_URL=http://localhost:8080/api
+VITE_API_BASE_URL=http://localhost:8081/api
 VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 ```
 
 ### Backend (for reference)
 
-| Property | Value |
-|----------|-------|
-| `server.port` | `8080` |
-| `jwt.expiration` | `86400000` (24h) |
-| `google.client-id` | Must match frontend Google Client ID |
-| `supabase.url` | Supabase project URL |
-| `supabase.service-role-key` | Server-side only — never expose to frontend |
-| `supabase.storage.cars` | Bucket for car images (default `car-images`) |
-| `supabase.storage.avatars` | Bucket for profile pictures (default `avatars`) |
+Set via environment variables — see `.env.example` in the backend repo.
+
+| Variable | Description |
+|----------|-------------|
+| `PORT` | Server port (default `8081`) |
+| `JWT_SECRET` | JWT signing key |
+| `JWT_EXPIRATION` | Token TTL ms (default 24h) |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated frontend URLs |
+| `GOOGLE_CLIENT_ID` | Must match frontend Google Client ID |
+| `STRIPE_SECRET_KEY` | Stripe secret key (server only) |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
+| `STRIPE_SUCCESS_URL` / `STRIPE_CANCEL_URL` | Post-checkout redirect URLs |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Server-side only — never expose to frontend |
 
 ### Google Cloud Console setup
 
@@ -926,9 +933,9 @@ VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 ## Next Steps
 
 1. Create the frontend repo and copy this file into it as `README.md` or `docs/API_INTEGRATION.md`.
-2. Add **CORS** (or Vite proxy) on the backend before integrating.
-3. Implement auth + protected routing first.
-4. Build public car catalog, then customer booking flow.
-5. Add role-specific admin/fleet dashboards last.
+2. Copy `.env.example` to `.env` on the backend and set `CORS_ALLOWED_ORIGINS` for your frontend URL.
+3. Configure Stripe keys and webhook URL for payments.
+4. Implement auth token storage and protected routes.
+5. Build booking + Stripe checkout flow end-to-end.
 
 For backend changes or new endpoints, keep this document in sync with the API repo.
