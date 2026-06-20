@@ -120,4 +120,9 @@ public class UserRepository {
         String sql = "DELETE FROM users WHERE id = ?";
         jdbcTemplate.update(sql, id);
     }
+
+    public void updatePassword(Long id, String encodedPassword) {
+        String sql = "UPDATE users SET password = ?, auth_provider = ?, updated_at = NOW() WHERE id = ?";
+        jdbcTemplate.update(sql, encodedPassword, AuthProvider.LOCAL.name(), id);
+    }
 }
