@@ -34,7 +34,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Email already registered: " + request.getEmail());
+            throw new IllegalArgumentException("Email already registered");
         }
 
         User user = User.builder()
