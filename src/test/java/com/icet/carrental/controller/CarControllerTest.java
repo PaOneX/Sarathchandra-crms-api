@@ -1,5 +1,6 @@
 package com.icet.carrental.controller;
 
+import com.icet.carrental.config.RestClientConfig;
 import com.icet.carrental.dto.response.CarResponse;
 import com.icet.carrental.enums.CarStatus;
 import com.icet.carrental.enums.FuelType;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
@@ -30,6 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(CarController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
+@Import(RestClientConfig.class)
 class CarControllerTest {
 
     @Autowired
