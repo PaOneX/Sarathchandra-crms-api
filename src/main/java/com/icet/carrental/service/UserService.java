@@ -1,6 +1,7 @@
 package com.icet.carrental.service;
 
 import com.icet.carrental.dto.request.RegisterRequest;
+import com.icet.carrental.dto.request.UpdateProfileRequest;
 import com.icet.carrental.dto.response.UserResponse;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -16,7 +17,7 @@ public interface UserService {
 
     UserResponse updateUser(Long id, RegisterRequest request);
 
-    UserResponse updateMyProfile(String email, RegisterRequest request);
+    UserResponse updateMyProfile(String email, UpdateProfileRequest request);
 
     UserResponse uploadProfilePicture(String email, MultipartFile file);
 

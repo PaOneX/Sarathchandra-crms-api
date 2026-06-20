@@ -2,6 +2,7 @@ package com.icet.carrental.service.impl;
 
 import com.icet.carrental.config.SupabaseProperties;
 import com.icet.carrental.dto.request.RegisterRequest;
+import com.icet.carrental.dto.request.UpdateProfileRequest;
 import com.icet.carrental.dto.response.UserResponse;
 import com.icet.carrental.exception.ResourceNotFoundException;
 import com.icet.carrental.model.User;
@@ -60,7 +61,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserResponse updateMyProfile(String email, RegisterRequest request) {
+    public UserResponse updateMyProfile(String email, UpdateProfileRequest request) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + email));
         user.setName(request.getName());

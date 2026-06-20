@@ -1,6 +1,7 @@
 package com.icet.carrental.controller;
 
 import com.icet.carrental.dto.request.RegisterRequest;
+import com.icet.carrental.dto.request.UpdateProfileRequest;
 import com.icet.carrental.dto.response.ApiResponse;
 import com.icet.carrental.dto.response.UserResponse;
 import com.icet.carrental.service.UserService;
@@ -32,7 +33,7 @@ public class UserController {
 
     @PutMapping("/me")
     public ResponseEntity<ApiResponse<UserResponse>> updateMyProfile(
-            @Valid @RequestBody RegisterRequest request,
+            @Valid @RequestBody UpdateProfileRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
 
         return ResponseEntity.ok(ApiResponse.success("Profile updated",
