@@ -57,7 +57,7 @@ public class WhatsAppServiceImpl implements WhatsAppService {
                     .retrieve()
                     .toBodilessEntity();
 
-            log.info("WhatsApp booking confirmation sent for booking {} to {}", booking.getId(), recipient);
+            log.debug("WhatsApp booking confirmation sent for booking {} to {}", booking.getId(), recipient);
             return true;
         } catch (Exception ex) {
             log.error("Failed to send WhatsApp confirmation for booking {}: {}", booking.getId(), ex.getMessage());
