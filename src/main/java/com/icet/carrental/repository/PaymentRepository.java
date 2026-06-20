@@ -86,6 +86,11 @@ public class PaymentRepository {
         return payment;
     }
 
+    public void updateTransactionId(Long id, String transactionId) {
+        String sql = "UPDATE payments SET transaction_id = ? WHERE id = ?";
+        jdbcTemplate.update(sql, transactionId, id);
+    }
+
     public void updateStatus(Long id, PaymentStatus status, LocalDateTime paidAt) {
         String sql = "UPDATE payments SET status = ?, paid_at = ? WHERE id = ?";
         jdbcTemplate.update(sql, status.name(),
