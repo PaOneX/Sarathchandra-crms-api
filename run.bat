@@ -1,8 +1,9 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
-set "PORT=8080"
+set "PORT=8081"
 set "AUTO_KILL=0"
+set "SPRING_PROFILES_ACTIVE=dev"
 
 if /I "%~1"=="--kill" set "AUTO_KILL=1"
 
@@ -39,6 +40,6 @@ echo Port %PORT% cleared.
 
 :start
 cd /d "%~dp0"
-echo Starting Car Rental API...
-call mvnw.cmd spring-boot:run
+echo Starting Car Rental API (profile: dev)...
+call mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=dev
 exit /b %ERRORLEVEL%

@@ -1,0 +1,17 @@
+.git
+.gitignore
+.idea
+.mvn/wrapper/maven-wrapper.jar
+*.md
+target
+.DS_Store
+.env
+.env.example
+uploads
+run.bat
+.vscode
+FRONTEND_GUIDE.md
+README.md
+*.log
+*.log.*
+node_modules
